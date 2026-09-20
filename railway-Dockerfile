@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY CONTRACT_PROOF_AI_BACKEND.zip /tmp/backend.zip
+RUN python - <<'PY'
+from pathlib import Path
+from zipfile import ZipFile
+
+with ZipFile('/tmp/backend.zip') as archive:
+    archive.extractall('/tmp/source')
+
+for item in Path('/tmp/source/contract-proof-ai').iterdir():
+    item.rename(Path('/app') / item.name)
+PY
+
+RUN pip install --no-cache-dir -r requirements.lock \
+    && pip install --no-deps . \
+    && useradd --uid 10001 --create-home appuser
+
+USER appuser
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT:-8000} --no-access-log"]
